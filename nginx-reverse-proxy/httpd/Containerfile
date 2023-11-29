@@ -1,0 +1,4 @@
+ARG BASE_IMAGE=docker.io/library/httpd:latest
+FROM ${BASE_IMAGE}
+
+COPY httpd_8080.conf /usr/local/apache2/conf/httpd.conf

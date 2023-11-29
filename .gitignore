@@ -1,0 +1,5 @@
+# Ignore anything in secrets directory
+**/secrets/
+
+# Ignore scratch
+**/scratch/

@@ -1,0 +1,99 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-reverse-proxy-tls-conf
+data:
+  reverse_proxy_tls.conf: |
+    server {
+      listen 80;
+      listen [::]:80;
+      server_name localhost;
+  
+      # redirect all HTTP requests to HTTPS with a 301 Moved Permanently response.
+      return 301 https://localhost\$request_uri;
+    }
+    server {
+      listen 443 ssl;
+      listen [::]:443 ssl;
+      server_name localhost;
+      ssl_session_cache   shared:SSL:40m;
+      ssl_session_timeout  4h;
+      ssl_protocols  TLSv1.2 TLSv1.3;
+      ssl_ciphers "ECDH+AESGCM:ECDH+AES256-CBC:ECDH+AES128-CBC:DH+3DES:!ADH:!AECDH:!MD5";
+      ssl_prefer_server_ciphers   on;
+      ssl_certificate         /etc/ssl/certs/tls.crt;
+      ssl_certificate_key     /etc/ssl/certs/tls.key;
+      location / {
+        proxy_pass http://localhost:8080;
+        proxy_buffers 16 4k;
+        proxy_buffer_size 2k;
+        proxy_set_header Host $http_host;
+        proxy_set_header ServerName $server_name;
+        proxy_set_header ServerPort 443;
+        proxy_set_header X-Real-IP: $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Scheme https;
+        proxy_set_header X-Forwarded-URL-Scheme https;
+        proxy_redirect default;
+      }
+    }
+    #EOF
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: demo-ngninx-reverse-proxy-pod
+spec:
+  securityContext:
+    seLinuxOptions:
+      type: spc_t
+    capabilities:
+      drop:
+        - CAP_MKNOD
+        - CAP_NET_RAW
+        - CAP_AUDIT_WRITE
+
+
+  containers:
+    - name: nginx
+      image: docker.io/library/nginx:latest
+      volumeMounts:
+        - name: nginx-reverse-proxy-tls-secrets-volume
+          mountPath: /etc/ssl/certs
+        - name: nginx-reverse-proxy-tls-conf-volume
+          mountPath: /etc/nginx/conf.d
+      ports:
+        - hostPort: 8443
+          containerPort: 443
+          protocol: tcp
+        - hostPort: 8080
+          containerPort: 80
+          protocol: tcp
+
+    - name: httpd
+      image: localhost/httpd:latest
+      volumeMounts:
+        - name: httpd-usr-local-apache2-htdocs
+          mountPath: /usr/local/apache2/htdocs
+      #ports:
+      #  - hostPort: 8080
+      #    containerPort: 8080
+      #    protocol: tcp
+
+
+  volumes:
+    - name: nginx-reverse-proxy-tls-secrets-volume
+      secret:
+        secretName: nginx-reverse-proxy-tls-secrets
+    - name: nginx-reverse-proxy-tls-conf-volume
+      configMap:
+        name: nginx-reverse-proxy-tls-conf
+        items:
+          - key: reverse_proxy_tls.conf
+            path: reverse_proxy_tls.conf
+    - name: httpd-usr-local-apache2-htdocs
+      hostPath:
+        path: /project/podman/httpd/html
+        type: Directory
