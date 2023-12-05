@@ -1,0 +1,9 @@
+ARG JUPYTERHUB_VERSION
+FROM quay.io/jupyterhub/jupyterhub-onbuild:$JUPYTERHUB_VERSION
+
+# Install Dockerspawner, OAuth, and Postres connector packages
+RUN /usr/bin/python -m pip  install --no-cache-dir dockerspawner oauthenticator psycopg2-binary
+
+# Unnecessary since the -onbuild images copy any jupyterhub_confg.py in the build context
+# of the Containerfile into the appropriate directory in the layer of the image
+# COPY jupyterhub_config.py /srv/jupyterhub/jupyterhub_config.py
