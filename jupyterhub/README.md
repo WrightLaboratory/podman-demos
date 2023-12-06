@@ -10,10 +10,16 @@ systemctl --user enable --now podman.socket
 
 ```
 
+Initialize the build environment.
+
+```bash
+# Set environment variables
+source scripts/build_env
+```
 Create a named bridged network for use by the JupyterHub pod.
 
 ```bash
-podman network create jupyterhub-net
+podman network create "${CFG_DOCKER_NETWORK_NAME}"
 ```
 
 Unlike Docker Compose YAML, Kubernetes YAML has no `build` fields to pass to the Containerfile `ARG` instructions.
@@ -21,14 +27,31 @@ Unlike Docker Compose YAML, Kubernetes YAML has no `build` fields to pass to the
 It is necessary to build the custom JupyterHub and Notebook images prior to playing the JupyterHub pod Kubernetes YAML file.
 
 ```bash
-podman build --file jupyterhub/Containerfile --build-arg-file argfile.conf  --tag localhost/jupyterhub:latest
+podman build --file jupyterhub/Containerfile \
+  --build-arg JUPYTERHUB_VERSION="${CFG_JUPYTERHUB_VERSION}" \
+  --tag localhost/jupyterhub:latest
 
 # The `--format docker` option gets past the non-OCI compliant instructions in the Jupyterlabs Dockerfile specs
-podman build --file datascience-notebook/Containerfile --build-arg-file argfile.conf  --tag localhost/datascience-notebook:latest --format docker
+
+podman build --file datascience-notebook/Containerfile \
+  --build-arg DOCKER_DATASCIENCE_NOTEBOOK_IMAGE_VERSION="${CFG_DOCKER_DATASCIENCE_NOTEBOOK_IMAGE_VERSION}" \
+  --build-arg JUPYTERHUB_VERSION="${CFG_JUPYTERHUB_VERSION}" \
+  --tag localhost/datascience-notebook:latest \
+  --format docker
+```
+
+Create the `jupyterhub.yaml` Kubernetes specfication file from the `jupyterhub.yaml.j2` template
+
+```bash
+# Create INI file with values for jinja2 template
+bash scripts/create_ini.sh
+
+# Create `jupyterhub.yaml` file
+bash scripts/generate_jupyterhub.yaml.sh 
 ```
 
 Launch the pod.
 
 ```bash
-podman kube play jupyterhub.yaml --network jupyterhub-net
+podman kube play jupyterhub.yaml --network "${CFG_DOCKER_NETWORK_NAME}"
 ```
