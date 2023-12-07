@@ -1,0 +1,48 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-reverse-proxy-tls-conf
+data:
+  reverse_proxy_tls.conf: |
+    # Top-level HTTP config for WebSocket headers
+    # If Upgrade is defined, Connection = upgrade
+    # If Upgrade is empty, Connection = close
+    map $http_upgrade $connection_upgrade {
+      default upgrade;
+      ''      close;
+    }
+    server {
+      listen 80;
+      listen [::]:80;
+      server_name {{ servername }};
+      # redirect all HTTP requests to HTTPS with a 301 Moved Permanently response.
+      return 301 https://{{ servername }}\$request_uri;
+    }
+    server {
+      listen 443 ssl;
+      listen [::]:443 ssl;
+      server_name {{ servername }};
+      ssl_session_cache   shared:SSL:40m;
+      ssl_session_timeout  4h;
+      ssl_protocols  TLSv1.2 TLSv1.3;
+      ssl_ciphers "ECDH+AESGCM:ECDH+AES256-CBC:ECDH+AES128-CBC:DH+3DES:!ADH:!AECDH:!MD5";
+      ssl_prefer_server_ciphers   on;
+      ssl_certificate         /etc/ssl/certs/tls.crt;
+      ssl_certificate_key     /etc/ssl/certs/tls.key;
+      location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        # websocket headers
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header X-Scheme $scheme;
+
+        proxy_buffering off;
+      }
+    }
+    #EOF

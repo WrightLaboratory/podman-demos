@@ -1,2 +1,2 @@
-**/jupyterhub.yaml
-**/jupyterhub.yaml.j2.ini
+**/*.yaml
+**/*.j2.ini

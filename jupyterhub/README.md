@@ -46,12 +46,15 @@ Create the `jupyterhub.yaml` Kubernetes specfication file from the `jupyterhub.y
 # Create INI file with values for jinja2 template
 bash scripts/create_ini.sh
 
-# Create `jupyterhub.yaml` file
-bash scripts/generate_jupyterhub.yaml.sh 
+# Create yaml files
+bash scripts/generate_pod_yaml.sh
 ```
 
 Launch the pod.
 
 ```bash
-podman kube play jupyterhub.yaml --network "${CFG_DOCKER_NETWORK_NAME}"
+podman kube play \
+  --network "${CFG_DOCKER_NETWORK_NAME}" \
+  --configmap nginx_reverse_proxy_config.yaml \
+  jupyterhub.yaml
 ```
