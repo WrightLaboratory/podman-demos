@@ -16,6 +16,17 @@ Initialize the build environment.
 # Set environment variables
 source scripts/build_env
 ```
+
+Create local directories to be mounted by pod containers:
+
+```bash
+sudo mkdir -p "${CFG_HOST_JUPYTERHUB_POD_DB_PATH}"
+sudo chown $(id -u):($id -u) -R "${CFG_HOST_JUPYTERHUB_POD_DB_PATH}"
+
+sudo mkdir -p "${CFG_HOST_JUPYTERHUB_POD_DATA_PATH}"
+sudo chown $(id -u):($id -u) -R ${CFG_HOST_JUPYTERHUB_POD_DATA_PATH}"
+```
+
 Create a named bridged network for use by the JupyterHub pod.
 
 ```bash
@@ -43,8 +54,8 @@ podman build --file datascience-notebook/Containerfile \
 Create the `jupyterhub.yaml` Kubernetes specfication file from the `jupyterhub.yaml.j2` template
 
 ```bash
-# Create INI file with values for jinja2 template
-bash scripts/create_ini.sh
+# Create toml configuration files with values for jinja2 template
+bash scripts/create_toml.sh
 
 # Create yaml files
 bash scripts/generate_pod_yaml.sh

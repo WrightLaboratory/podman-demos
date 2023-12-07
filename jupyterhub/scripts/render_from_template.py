@@ -2,16 +2,17 @@
 
 import argparse
 import sys
+import tomli
 
-from configparser import ConfigParser
 from os import getenv
 from jinja2 import Environment, FileSystemLoader
 from pathlib import Path
 
 
 def render_yaml_from(template_filename, output_file, template_cfg, section='default'):
-  config = ConfigParser()
-  config.read(template_cfg)
+
+  with open(template_cfg, 'rb') as stream:
+    config = tomli.load(stream)
 
   template_values = { k: config[section][k] for k in config[section] }
 
@@ -27,7 +28,7 @@ def render_yaml_from(template_filename, output_file, template_cfg, section='defa
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('template', help='Path to Jinja2 template file')
-  parser.add_argument('-i', '--ini', help='Path to Jinja2 template configuration file with values')
+  parser.add_argument('-c', '--config', help='Path to Jinja2 template configuration file with values')
   parser.add_argument('-o', '--output', help='Path to output file')
   args = parser.parse_args()
 
@@ -35,11 +36,11 @@ def main():
     template = args.template
     template_file = Path(template).expanduser().absolute()
 
-    if (a := args.ini) is None:
-      p = Path(f'{template}.ini').expanduser().absolute()
+    if (a := args.config) is None:
+      p = Path(f'{template}.toml').expanduser().absolute()
     else:
       p = Path(a).expanduser().absolute()
-    ini_file = p
+    config_file = p
 
     if (a := args.output) is None and template.endswith('.j2'):
       p = Path(template.removesuffix('.j2')).expanduser().absolute()
@@ -51,9 +52,9 @@ def main():
 
     #print(f"Template file : {template_file}")
     #print(f"Output file : {output_file}")
-    #print(f"INI file : {ini_file}")
+    #print(f"config file : {config_file}")
     
-    render_yaml_from(template_filename=template_file, output_file=output_file, template_cfg=ini_file)
+    render_yaml_from(template_filename=template_file, output_file=output_file, template_cfg=config_file)
     sys.exit(0)
   except IOError as e:
     print(f"{e.text}")
