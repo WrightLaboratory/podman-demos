@@ -9,9 +9,10 @@ c = get_config()
 #  Default: 30
 c.Application.log_level = 0
 
-#c.JupyterHub.authenticator_class = 'jupyterhub.auth.PAMAuthenticator'
-
 c.JupyterHub.authenticator_class = 'dummy'
+c.DummyAuthenticator.password = env["JUPYTERHUB_DUMMY_PASSWORD"]
+c.Authenticator.admin_users = {'admin'}
+c.Authenticator.allowed_users = {'user00'}
 
 
 # Set the hub IP address for use in the singleuser server.
