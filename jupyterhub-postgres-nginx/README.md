@@ -66,6 +66,6 @@ Launch the pod.
 ```bash
 podman kube play \
   --network "${CFG_DOCKER_NETWORK_NAME}" \
-  --configmap nginx_reverse_proxy_config.yaml \
-  jupyterhub.yaml
+  --configmap nginx_reverse_proxy-config.yaml \
+  jupyterhub-pod.yaml
 ```
