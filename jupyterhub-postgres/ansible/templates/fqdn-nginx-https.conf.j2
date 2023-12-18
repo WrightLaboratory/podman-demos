@@ -1,0 +1,18 @@
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name {{ domain_name }};
+
+    include snippets/ssl;
+
+    # replace with the IP address of your resolver
+    # unnecessary in the case that we are proxying to services on localhost anyway.
+    # resolver 127.0.0.1;
+
+    root /var/www/{{ domain_name }}/html;
+    index index.html index.htm;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}

@@ -1,0 +1,7 @@
+**/secret*/
+
+**/*.yaml
+**/*.j2.ini
+**/*.j2.toml
+
+**/inventory
