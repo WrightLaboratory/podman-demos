@@ -46,12 +46,25 @@ spec:
             secretKeyRef:
               name: postgres-db-secrets
               key: password
+        - name: GITHUB_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: github-oauth-secrets
+              key: client_id
+        - name: GITHUB_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: github-oauth-secrets
+              key: client_secret
+        - name: OAUTH_CALLBACK_URL
+          valueFrom:
+            secretKeyRef:
+              name: github-oauth-secrets
+              key: callback_url
         - name: POSTGRES_DB
           value: jupyterhub
         - name: POSTGRES_HOST
           value: localhost
-        - name: JUPYTERHUB_DUMMY_PASSWORD
-          value: ChangeMe!
         - name: DOCKER_HOST
           value: unix:///var/run/podman.sock
         - name: DOCKER_NETWORK_NAME

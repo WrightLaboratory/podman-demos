@@ -1,6 +1,8 @@
 **/secret*/
 
-**/*.yaml
+**/jupyterhub-pod.yaml
+**/jupyterhub-secrets.yaml
+**/secrets.yaml
 **/*.j2.ini
 **/*.j2.toml
 
