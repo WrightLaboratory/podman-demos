@@ -97,6 +97,22 @@ ansible-playbook -i ./inventory --limit localhost, --connection=local cr8-k8syam
 popd
 ```
 
+## Create Authorizations for Github Users
+
+```bash
+tee "${CFG_HOST_JUPYTERHUB_POD_DATA_PATH}/jupyterhub_users.toml"<<_EOF
+[[users]]
+name = '{{ github_username_00 }}'
+role = 'admin'
+
+[[users]]
+name = '{{ github_username_01 }}'
+role = 'user'
+_EOF
+```
+
+Add `[[users]]` stanzas as applicable.
+
 Launch the pod.
 
 ```bash
