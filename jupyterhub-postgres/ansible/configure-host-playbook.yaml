@@ -1,0 +1,161 @@
+---
+- hosts: "*"
+  become: true
+  gather_facts: yes
+  vars:
+    domain_name: "{{ ansible_fqdn }}"
+    letsencrypt_email: "{{ lookup('env', 'CFG_CERTBOT_EMAIL') }}"
+  tasks:
+    # This task is disabled; repeated invocation will intermittently fail since it puts out a subscription manager request.
+    #- name: enable CRB
+    #  community.general.rhsm_repository:
+    #    name: codeready-builder-for-rhel-9-x86_64-rpms
+    #    state: enabled
+    - name: install EPEL RPM GPG Key
+      ansible.builtin.rpm_key:
+        key: 'https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9'
+        state: present
+    - name: install EPEL
+      ansible.builtin.dnf:
+        name: 'https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm'
+        state: present
+
+    - name: install python3-libselinux
+      ansible.builtin.dnf:
+        name: python3-libselinux
+        state: present
+    - name: install policycoreutils-python-utils
+      ansible.builtin.dnf:
+        name: policycoreutils-python-utils
+        state: present
+
+    - name: install nginx
+      ansible.builtin.dnf:
+        name: nginx
+        state: present
+
+    - name: create static web content directory
+      ansible.builtin.file:
+          path: /var/www/html
+          state: directory
+          recurse: true
+          owner: nginx
+          group: nginx
+    - name: create static web content directory for {{ domain_name }}
+      ansible.builtin.file:
+          path: /var/www/{{ domain_name }}/html
+          state: directory
+          recurse: true
+          owner: nginx
+          group: nginx
+    - name: install static index.html
+      ansible.builtin.template:
+        src: templates/index.html.j2
+        dest: /var/www/{{ domain_name }}/html/index.html
+        owner: nginx
+        group: nginx
+    
+    - name: install Certbot
+      ansible.builtin.dnf:
+        name: certbot
+        state: present
+    - name: install Certbot Python 3 packages
+      ansible.builtin.dnf:
+        name: python3-certbot-nginx
+        state: present
+
+    - name: create letsencrypt webroot directory
+      ansible.builtin.file:
+        name: /var/www/letsencrypt
+        recurse: true
+        state: directory
+        owner: nginx
+        group: nginx
+  
+    - name: create letsencrypt config
+      ansible.builtin.template:
+        src: templates/00-letsencrypt-nginx.conf.j2
+        dest: /etc/nginx/conf.d/00-letsencrypt-nginx.conf
+        owner: root
+        group: root
+
+    - name: assure onwership of /var/www
+      ansible.builtin.file:
+        name: /var/www
+        recurse: true
+        state: directory
+        owner: nginx
+        group: nginx
+
+    - name: apply new SELinux file context to /var/www
+      ansible.builtin.command: restorecon -irv /var/www
+
+    - name: create letsencrypt certificate
+      ansible.builtin.shell: certbot certonly -n --webroot -w /var/www/letsencrypt -m {{ letsencrypt_email }} --agree-tos -d {{ domain_name }}
+      args:
+        creates: /etc/letsencrypt/live/{{ domain_name }}
+
+    - name: generate dhparams
+      ansible.builtin.shell: openssl dhparam -out /etc/nginx/dhparams.pem 4096
+      args:
+        creates: /etc/nginx/dhparams.pem
+
+    - name: create nginx ssl configuration snippet directory
+      ansible.builtin.file:
+        name: /etc/nginx/snippets
+        recurse: true
+        state: directory
+        owner: root
+        group: root
+
+    - name: create nginx ssl configuration snippet
+      ansible.builtin.template:
+        src: templates/ssl_snippet_modern.j2
+        dest: /etc/nginx/snippets/ssl
+        owner: root
+        group: root
+
+    # Edit the template to accommodate non-JH subdomain
+    # Will need to change the JH template to use subdomain
+    #- name: install {{ domain_name }} https nginx configuration
+    #  ansible.builtin.template:
+    #    src: templates/fqdn-nginx-https.conf.j2
+    #    dest: /etc/nginx/conf.d/{{ domain_name }}-https-nginx.conf
+    #    owner: root
+    #    group: root
+
+    - name: install {{ domain_name }} nginx reverse proxy for jupyterhub configuration
+      ansible.builtin.template:
+        src: templates/05-reverse-proxy-jupyterhub.conf.j2
+        dest: /etc/nginx/conf.d/05-reverse-proxy-jupyterhub.conf
+        owner: root
+        group: root
+
+    - name: enable nginx to act as proxy in SELinux
+      ansible.posix.seboolean:
+        name: httpd_can_network_connect
+        state: true
+        persistent: true
+
+    - name: enable Nginx
+      ansible.builtin.service:
+        name: nginx
+        enabled: true
+        state: started
+
+    #- name: Add letsencrypt cronjob for cert renewal
+    #  cron:
+    #    name: letsencrypt_renewal
+    #    special_time: weekly
+    #    job: letsencrypt --renew certonly -n --webroot -w /var/www/letsencrypt -m {{ letsencrypt_email }} --agree-tos -d {{ domain_name }} && service nginx reload% 
+    
+    - name: permit http 80/tcp in default zone
+      ansible.posix.firewalld:
+        service: http
+        permanent: true
+        state: enabled
+    - name: permit https 443/tcp in default zone
+      ansible.posix.firewalld:
+        service: https
+        permanent: true
+        state: enabled

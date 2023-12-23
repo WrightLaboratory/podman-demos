@@ -1,0 +1,21 @@
+---
+- hosts: "*"
+  become: true
+  vars:
+    gh_client_id: "{{ lookup('env', 'CFG_GH_CLIENT_ID') }}"
+    gh_client_secret: "{{ lookup('env', 'CFG_GH_CLIENT_SECRET') }}"
+    gh_oauth_callback_url: "{{ lookup('env', 'CFG_GH_CALLBACK_URL') }}"
+    docker_network_name: "{{ lookup('env', 'CFG_DOCKER_NETWORK_NAME') }}"
+    host_jupyterhub_pod_db_path: "{{ lookup('env', 'CFG_HOST_JUPYTERHUB_POD_DB_PATH') }}"
+    host_jupyterhub_pod_data_path: "{{ lookup('env', 'CFG_HOST_JUPYTERHUB_POD_DATA_PATH') }}"
+    host_podman_socket_path: "{{ lookup('env', 'CFG_HOST_PODMAN_SOCKET_PATH') }}"
+
+  tasks:
+    - name: create secrets.yaml
+      ansible.builtin.template:
+        src: ./templates/secrets.yaml.j2
+        dest: ../secrets.yaml
+    - name: create jupyterhub-pod.yaml
+      ansible.builtin.template:
+        src: ./templates/jupyterhub-pod.yaml.j2
+        dest: ../jupyterhub-pod.yaml

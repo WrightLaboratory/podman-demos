@@ -1,0 +1,109 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: jupyterhub-pod
+spec:
+  securityContext:
+    seLinuxOptions:
+      type: spc_t
+    capabilities:
+      drop:
+        - CAP_MKNOD
+        - CAP_NET_RAW
+        - CAP_AUDIT_WRITE
+
+  containers:
+    - name: postgres
+      image: docker.io/library/postgres:13
+      env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-db-secrets
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-db-secrets
+              key: password
+        - name: POSTGRES_DB
+          value: jupyterhub
+      volumeMounts:
+        - name: project-podman-jupyterhub-db-volume
+          mountPath: /var/lib/postgresql/data
+
+    - name: jupyterhub
+      image: localhost/jupyterhub:latest
+      env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-db-secrets
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-db-secrets
+              key: password
+        - name: GITHUB_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: github-oauth-secrets
+              key: client_id
+        - name: GITHUB_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: github-oauth-secrets
+              key: client_secret
+        - name: OAUTH_CALLBACK_URL
+          valueFrom:
+            secretKeyRef:
+              name: github-oauth-secrets
+              key: callback_url
+        - name: POSTGRES_DB
+          value: jupyterhub
+        - name: POSTGRES_HOST
+          value: localhost
+        - name: DOCKER_HOST
+          value: unix:///var/run/podman.sock
+        - name: DOCKER_NETWORK_NAME
+          value: {{ docker_network_name }}
+        - name: DOCKER_NOTEBOOK_IMAGE
+          value: localhost/datascience-notebook:latest
+      ports:
+      - containerPort: 8000
+        hostPort: 8000
+        protocol: TCP
+      volumeMounts:
+        - name: project-podman-jupyterhub-data-volume
+          mountPath: /data
+        - name: podman-socket-volume
+          mountPath: /var/run
+
+
+  initContainers:
+    - name: initialize-pod-volumes
+      image: docker.io/library/busybox
+      securityContext:
+        runAsUser: 0
+        privileged: true
+      command: ["sh", "-c", "chown -R 999:999 /var/lib/postgresql/data"]
+      volumeMounts:
+        - name: project-podman-jupyterhub-db-volume
+          mountPath: /var/lib/postgresql/data
+
+  volumes:
+    - name: project-podman-jupyterhub-db-volume
+      hostPath:
+        path: {{ host_jupyterhub_pod_db_path  }}
+        type: Directory
+    - name: project-podman-jupyterhub-data-volume
+      hostPath:
+        path: {{ host_jupyterhub_pod_data_path  }}
+        type: Directory
+    - name: podman-socket-volume
+      hostPath:
+        path: {{ host_podman_socket_path }}
+        type: Directory
+
